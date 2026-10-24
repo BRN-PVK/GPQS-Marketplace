@@ -1,0 +1,144 @@
+// Marketplace UFSCar - Modelo de dados do MVP (GPQS)
+// Entrega C03: modelagem de dados do domínio completo.
+// C04/C05 usam User, SellerProfile e Product.
+// Order/OrderItem/Payment/Commission já estão modelados para C06-C08
+// (valores monetários em centavos (Int) para evitar erros de ponto flutuante).
+//
+// Observação: SQLite (Prisma) não suporta enum nativo. Os campos abaixo usam
+// String com valores padronizados, validados na aplicação (zod/regras):
+//   Role:              ADMIN | BUYER | SELLER
+//   SellerStatus:      PENDING | APPROVED | REJECTED
+//   OrderStatus:       PENDING_PAYMENT | CONFIRMED | REJECTED
+//   FulfillmentStatus: CONFIRMED | PREPARING | READY_FOR_PICKUP | COMPLETED
+//   PaymentResult:     APPROVED | REJECTED
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // MVP em SQLite (zero setup). Para PostgreSQL: provider = "postgresql" (enums podem voltar a ser nativos).
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  name         String
+  email        String         @unique
+  passwordHash String
+  role         String         @default("BUYER") // Role
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  seller       SellerProfile?
+  orders       Order[] // pedidos feitos como comprador
+  cart         Cart?
+}
+
+// Perfil de vendedor: existe quando o usuário solicita ser vendedor.
+model SellerProfile {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeName String
+  status    String    @default("PENDING") // SellerStatus
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  products  Product[]
+
+  @@index([status])
+}
+
+// Produto pertencente a um vendedor (RF03/RF04/CA02/CA03)
+model Product {
+  id          String        @id @default(cuid())
+  sellerId    String
+  seller      SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  name        String
+  description String        @default("")
+  priceCents  Int // preço em centavos
+  category    String
+  stockQty    Int           @default(0)
+  active      Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+
+  @@index([category])
+  @@index([active])
+  @@index([name])
+}
+
+// ------- Modelado para C06 (carrinho multivendedor) -------
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+
+  @@unique([cartId, productId])
+}
+
+// ------- Modelado para C07/C08 (checkout, pagamento, comissões) -------
+model Order {
+  id          String       @id @default(cuid())
+  buyerId     String
+  buyer       User         @relation(fields: [buyerId], references: [id])
+  status      String       @default("PENDING_PAYMENT") // OrderStatus
+  totalCents  Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  items       OrderItem[]
+  payment     Payment?
+  commissions Commission[]
+}
+
+model OrderItem {
+  id                String  @id @default(cuid())
+  orderId           String
+  order             Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product @relation(fields: [productId], references: [id])
+  sellerId          String // vendedor "congelado" no momento da compra
+  nameSnapshot      String // nome preservado no registro da compra
+  unitPriceCents    Int // preço preservado no registro da compra
+  quantity          Int
+  fulfillmentStatus String  @default("CONFIRMED") // FulfillmentStatus
+}
+
+// Pagamento simulado (C08) - sem movimentação financeira real
+model Payment {
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  result    String // PaymentResult
+  createdAt DateTime @default(now())
+}
+
+// Comissão por vendedor, preservada no registro da compra (C08)
+model Commission {
+  id              String @id @default(cuid())
+  orderId         String
+  order           Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sellerId        String
+  baseAmountCents Int // base de cálculo preservada
+  rateBps         Int // taxa em pontos-base (1000 = 10%), preservada
+  amountCents     Int // comissão calculada, preservada
+
+  @@index([sellerId])
+}
