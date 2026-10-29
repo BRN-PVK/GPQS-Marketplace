@@ -4,6 +4,7 @@ import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../http/AppError.js';
 import { asyncHandler } from '../../http/asyncHandler.js';
 import { authenticate, authorize } from '../../http/middleware/auth.js';
+import { groupBySeller, lineSubtotalCents, purchasableCartItem, totalCents } from './cart.rules.js';
 
 export const cartRouter = Router();
 
@@ -16,7 +17,8 @@ const quantitySchema = z.object({
 });
 
 // Todas as operações do carrinho são exclusivas de compradores autenticados.
-cartRouter.use(authenticate, authorize('BUYER'));
+// Restrito a /cart: o router é montado em /api e não pode barrar rotas registradas depois dele.
+cartRouter.use('/cart', authenticate, authorize('BUYER'));
 
 // GET /cart: itens agrupados por loja e totais calculados com preços do banco.
 cartRouter.get(
@@ -110,7 +112,7 @@ async function readCart(userId: string) {
     where: { userId },
     include: {
       items: {
-        where: { product: { active: true, seller: { status: 'APPROVED' } } },
+        where: purchasableCartItem,
         include: { product: { include: { seller: { select: { id: true, storeName: true } } } } },
         orderBy: { product: { name: 'asc' } },
       },
@@ -128,29 +130,13 @@ async function readCart(userId: string) {
     stockQty: item.product.stockQty,
     storeName: item.product.seller.storeName,
     sellerId: item.product.seller.id,
-    subtotalCents: item.product.priceCents * item.quantity,
+    subtotalCents: lineSubtotalCents(item.product.priceCents, item.quantity),
   }));
-
-  const groupsBySeller = new Map<string, {
-    sellerId: string;
-    storeName: string;
-    items: typeof items;
-    subtotalCents: number;
-  }>();
-  for (const item of items) {
-    let group = groupsBySeller.get(item.sellerId);
-    if (!group) {
-      group = { sellerId: item.sellerId, storeName: item.storeName, items: [], subtotalCents: 0 };
-      groupsBySeller.set(item.sellerId, group);
-    }
-    group.items.push(item);
-    group.subtotalCents += item.subtotalCents;
-  }
 
   return {
     id: cart?.id ?? null,
-    groups: [...groupsBySeller.values()],
+    groups: groupBySeller(items),
     itemsCount: items.reduce((sum, item) => sum + item.quantity, 0),
-    totalCents: items.reduce((sum, item) => sum + item.subtotalCents, 0),
+    totalCents: totalCents(items),
   };
 }

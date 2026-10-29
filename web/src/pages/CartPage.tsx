@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
 
 type CartItem = {
@@ -28,6 +28,8 @@ export function CartPage() {
   const [busyItem, setBusyItem] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [checkingOut, setCheckingOut] = useState(false);
+  const navigate = useNavigate();
 
   const loadCart = useCallback(async () => {
     setError('');
@@ -41,6 +43,19 @@ export function CartPage() {
   }, []);
 
   useEffect(() => { void loadCart(); }, [loadCart]);
+
+  async function checkout() {
+    setCheckingOut(true);
+    setError('');
+    try {
+      const order = await api<{ id: string }>('/orders/checkout', { method: 'POST' });
+      navigate('/pedidos', { state: { createdOrderId: order.id } });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível finalizar a compra.');
+    } finally {
+      setCheckingOut(false);
+    }
+  }
 
   async function updateQuantity(item: CartItem, quantity: number) {
     if (quantity < 1 || quantity > item.stockQty) return;
@@ -78,7 +93,7 @@ export function CartPage() {
     <section>
       <div className="section-head">
         <h1>Meu carrinho</h1>
-        <Link to="/">Continuar comprando</Link>
+        <span><Link to="/pedidos">Meus pedidos</Link> · <Link to="/">Continuar comprando</Link></span>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       {notice && <p className="success-message" role="status">{notice}</p>}
@@ -125,7 +140,8 @@ export function CartPage() {
           </div>
           <aside className="cart-summary">
             <div><span>Total geral</span><strong>{money(cart.totalCents)}</strong></div>
-            <p className="muted">O total reúne os produtos de todas as lojas. A finalização da compra será disponibilizada na próxima etapa.</p>
+            <p className="muted">Checkout único: seu pedido reunirá os produtos de todas as lojas. O pagamento será tratado na próxima etapa.</p>
+            <button type="button" className="btn-dark" disabled={checkingOut || busyItem !== ''} onClick={() => void checkout()}>{checkingOut ? 'Finalizando…' : 'Finalizar compra'}</button>
           </aside>
         </>
       )}

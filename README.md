@@ -52,3 +52,13 @@ Todas exigem JWT de uma conta com perfil `BUYER`:
 - `DELETE /api/cart/items/:itemId` — remove um item do carrinho do comprador autenticado.
 
 A API impede adicionar produtos inativos/indisponíveis e quantidades acima do estoque. Preços e subtotais são calculados no servidor. O catálogo inicial está disponível na rota `/` e a página do carrinho em `/carrinho`. O checkout não faz parte desta entrega; fica para C07.
+
+
+## C07 — Checkout único
+
+- `POST /api/orders/checkout`: cria um único pedido a partir dos itens do carrinho, recalcula os preços pelo banco, valida disponibilidade e estoque, agrupa itens por vendedor e limpa o carrinho somente quando o pedido é criado.
+- `GET /api/orders`: lista os pedidos do comprador autenticado, com subtotais por loja e total geral.
+- A compra é criada com status `PENDING_PAYMENT`; a simulação de pagamento e a baixa de estoque ficam fora desta entrega.
+- Interface: botão **Finalizar compra** no carrinho e página **Meus pedidos**.
+- Carrinho e checkout usam o mesmo filtro de disponibilidade: itens de produtos desativados (ou de vendedores não aprovados) não aparecem no carrinho e não entram no pedido, então o total exibido é o total do pedido.
+- Testes unitários (`npm test` em `server/`): `cart.rules.test.ts` (CA04 totais do carrinho, CA05 itens e valores por vendedor) e `orders.rules.test.ts` (CA07 estoque no checkout).

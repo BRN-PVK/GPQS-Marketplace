@@ -6,6 +6,7 @@ import { SellerPage } from './pages/SellerPage';
 import { AdminPage } from './pages/AdminPage';
 import { HomePage } from './pages/HomePage';
 import { CartPage } from './pages/CartPage';
+import { OrdersPage } from './pages/OrdersPage';
 import type { Role } from './lib/auth';
 import type { ReactNode } from 'react';
 
@@ -26,6 +27,7 @@ function Nav() {
         <nav className="nav-links">
           <Link to="/">Início</Link>
           {user?.role === 'BUYER' && <Link to="/carrinho">Carrinho</Link>}
+          {user?.role === 'BUYER' && <Link to="/pedidos">Meus pedidos</Link>}
           {user?.role === 'SELLER' && <Link to="/vendedor">Minha loja</Link>}
           {user?.role === 'BUYER' && <Link to="/vendedor">Vender</Link>}
           {user?.role === 'ADMIN' && <Link to="/admin">Admin</Link>}
@@ -80,6 +82,14 @@ export function App() {
       <main className="container">
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route
+            path="/pedidos"
+            element={
+              <Protected roles={['BUYER']}>
+                <OrdersPage />
+              </Protected>
+            }
+          />
           <Route
             path="/carrinho"
             element={
