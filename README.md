@@ -36,3 +36,19 @@ Senha de todas: `senha123`
 | Comprador         | comprador@teste.com      |
 | Vendedor aprovado | vendedor@teste.com       |
 | Vendedor pendente | pendente@teste.com       |
+
+
+## C06 — Catálogo e carrinho multivendedor
+
+A entrega C06 disponibiliza o catálogo público e o carrinho para compradores autenticados. O carrinho reúne itens de diferentes lojas, agrupa a visualização por vendedor e calcula subtotais e total em centavos usando os preços atuais armazenados no banco.
+
+### Rotas adicionadas para o carrinho
+
+Todas exigem JWT de uma conta com perfil `BUYER`:
+
+- `GET /api/cart` — consulta itens agrupados por loja, quantidade total e total em centavos.
+- `POST /api/cart/items` — adiciona um produto; corpo JSON: `{"productId":"...","quantity":1}`. A quantidade é somada ao item existente.
+- `PATCH /api/cart/items/:itemId` — define a quantidade; corpo JSON: `{"quantity":2}`.
+- `DELETE /api/cart/items/:itemId` — remove um item do carrinho do comprador autenticado.
+
+A API impede adicionar produtos inativos/indisponíveis e quantidades acima do estoque. Preços e subtotais são calculados no servidor. O catálogo inicial está disponível na rota `/` e a página do carrinho em `/carrinho`. O checkout não faz parte desta entrega; fica para C07.

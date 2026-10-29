@@ -619,3 +619,71 @@ code {
     background: #3a1a1a;
   }
 }
+
+
+/* ---------- C06: catálogo e carrinho multivendedor ---------- */
+.success-message {
+  color: var(--ok);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+}
+.success-message a { color: inherit; font-weight: 700; margin-left: 6px; }
+.cart-groups { display: flex; flex-direction: column; gap: 18px; }
+.cart-store {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+}
+.cart-store-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.cart-store-head h2 { margin: 0; }
+.cart-store-head strong { font-size: .9rem; }
+.cart-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cart-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.cart-item-info { min-width: 0; }
+.cart-item-info h3 { margin: 0 0 5px; }
+.cart-item-info p { margin: 4px 0; font-size: .88rem; }
+.cart-line-total { font-weight: 700; }
+.cart-item-actions { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }
+.quantity-control { min-width: 150px; }
+.quantity-control > span { display: flex; align-items: center; gap: 5px; }
+.quantity-control input { width: 64px; padding: 8px 5px; text-align: center; }
+.quantity-button { padding: 7px 11px; }
+.cart-summary {
+  max-width: 520px;
+  margin: 22px 0 0 auto;
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.cart-summary > div { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; }
+.cart-summary strong { font-size: 1.5rem; }
+.cart-summary p { font-size: .85rem; margin-bottom: 0; }
+@media (max-width: 620px) {
+  .searchbar { border-radius: var(--radius); flex-wrap: wrap; }
+  .searchbar input { min-width: 100%; }
+  .searchbar select { min-height: 42px; flex: 1; }
+  .searchbar .search-btn { min-height: 42px; }
+  .cart-item { align-items: stretch; flex-direction: column; }
+  .cart-item-actions { align-items: center; justify-content: space-between; }
+  .cart-summary { max-width: none; }
+}

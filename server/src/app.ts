@@ -4,6 +4,7 @@ import { env } from './env.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { sellersRouter } from './modules/sellers/sellers.routes.js';
 import { productsRouter } from './modules/products/products.routes.js';
+import { cartRouter } from './modules/cart/cart.routes.js';
 import { errorHandler } from './http/middleware/errorHandler.js';
 
 export function createApp() {
@@ -19,6 +20,7 @@ export function createApp() {
   app.use('/api/auth', authRouter);
   app.use('/api', sellersRouter);
   app.use('/api', productsRouter);
+  app.use('/api', cartRouter);
 
   // 404 para rotas não mapeadas
   app.use((_req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));

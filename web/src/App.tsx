@@ -4,6 +4,8 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SellerPage } from './pages/SellerPage';
 import { AdminPage } from './pages/AdminPage';
+import { HomePage } from './pages/HomePage';
+import { CartPage } from './pages/CartPage';
 import type { Role } from './lib/auth';
 import type { ReactNode } from 'react';
 
@@ -23,6 +25,7 @@ function Nav() {
         </Link>
         <nav className="nav-links">
           <Link to="/">Início</Link>
+          {user?.role === 'BUYER' && <Link to="/carrinho">Carrinho</Link>}
           {user?.role === 'SELLER' && <Link to="/vendedor">Minha loja</Link>}
           {user?.role === 'BUYER' && <Link to="/vendedor">Vender</Link>}
           {user?.role === 'ADMIN' && <Link to="/admin">Admin</Link>}
@@ -69,18 +72,6 @@ function Protected({ roles, children }: { roles: Role[]; children: ReactNode }) 
   return <>{children}</>;
 }
 
-function Home() {
-  const { user } = useAuth();
-  return (
-    <section className="notice">
-      <h1>Marketplace UFSCar</h1>
-      <p className="muted">
-        {user ? `Olá, ${user.name}!` : 'Entre ou crie sua conta para começar.'} O catálogo de
-        produtos será disponibilizado na próxima entrega.
-      </p>
-    </section>
-  );
-}
 
 export function App() {
   return (
@@ -88,7 +79,15 @@ export function App() {
       <Nav />
       <main className="container">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<HomePage />} />
+          <Route
+            path="/carrinho"
+            element={
+              <Protected roles={['BUYER']}>
+                <CartPage />
+              </Protected>
+            }
+          />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<RegisterPage />} />
           <Route
