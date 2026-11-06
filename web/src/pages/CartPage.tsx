@@ -140,7 +140,7 @@ export function CartPage() {
           </div>
           <aside className="cart-summary">
             <div><span>Total geral</span><strong>{money(cart.totalCents)}</strong></div>
-            <p className="muted">Checkout único: seu pedido reunirá os produtos de todas as lojas. O pagamento será tratado na próxima etapa.</p>
+            <p className="muted">Checkout único: seu pedido reunirá os produtos de todas as lojas. Na etapa seguinte você poderá simular o pagamento para confirmar o pedido.</p>
             <button type="button" className="btn-dark" disabled={checkingOut || busyItem !== ''} onClick={() => void checkout()}>{checkingOut ? 'Finalizando…' : 'Finalizar compra'}</button>
           </aside>
         </>
