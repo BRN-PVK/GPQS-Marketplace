@@ -35,7 +35,7 @@ async function main() {
     data: { name: 'Comprador Teste', email: 'comprador@teste.com', passwordHash, role: 'BUYER' },
   });
 
-  // Vendedor APROVADO, com produtos
+  // Vendedor APROVADO 1, com produtos (Papelaria Universitária)
   const sellerAprovado = await prisma.user.create({
     data: {
       name: 'Vendedor Aprovado',
@@ -43,7 +43,21 @@ async function main() {
       passwordHash,
       role: 'SELLER',
       seller: {
-        create: { storeName: 'Loja do Vendedor Aprovado', status: 'APPROVED' },
+        create: { storeName: 'Papelaria Universitária', status: 'APPROVED' },
+      },
+    },
+    include: { seller: true },
+  });
+
+  // Vendedor APROVADO 2, com produtos (Tech UFSCar) - Viabiliza demonstração de CA05 e CA08
+  const sellerAprovado2 = await prisma.user.create({
+    data: {
+      name: 'Vendedor Tech',
+      email: 'vendedor2@teste.com',
+      passwordHash,
+      role: 'SELLER',
+      seller: {
+        create: { storeName: 'Tech UFSCar', status: 'APPROVED' },
       },
     },
     include: { seller: true },
@@ -60,12 +74,12 @@ async function main() {
     },
   });
 
-  // Produtos do vendedor aprovado (RF03/RF04)
-  const sellerId = sellerAprovado.seller!.id;
+  // Produtos do vendedor aprovado 1 (Papelaria)
+  const sellerId1 = sellerAprovado.seller!.id;
   await prisma.product.createMany({
     data: [
       {
-        sellerId,
+        sellerId: sellerId1,
         name: 'Caderno Universitário 200 folhas',
         description: 'Caderno espiral, capa dura.',
         priceCents: 2990,
@@ -73,7 +87,7 @@ async function main() {
         stockQty: 50,
       },
       {
-        sellerId,
+        sellerId: sellerId1,
         name: 'Caneta Esferográfica Azul (cx 50)',
         description: 'Caixa com 50 canetas.',
         priceCents: 4500,
@@ -81,17 +95,40 @@ async function main() {
         stockQty: 20,
       },
       {
-        sellerId,
+        sellerId: sellerId1,
+        name: 'Bloco de Notas Adesivas',
+        description: 'Bloco com 100 folhas coloridas.',
+        priceCents: 1000,
+        category: 'Papelaria',
+        stockQty: 15,
+      },
+    ],
+  });
+
+  // Produtos do vendedor aprovado 2 (Eletrônicos e Informática)
+  const sellerId2 = sellerAprovado2.seller!.id;
+  await prisma.product.createMany({
+    data: [
+      {
+        sellerId: sellerId2,
         name: 'Calculadora Científica',
-        description: '240 funções.',
+        description: '240 funções para engenharia e exatas.',
         priceCents: 8990,
         category: 'Eletrônicos',
         stockQty: 8,
       },
       {
-        sellerId,
+        sellerId: sellerId2,
+        name: 'Mouse Sem Fio Ergonômico',
+        description: 'Conexão USB 2.4GHz com pilha inclusa.',
+        priceCents: 5000,
+        category: 'Eletrônicos',
+        stockQty: 12,
+      },
+      {
+        sellerId: sellerId2,
         name: 'Fone de Ouvido com Fio',
-        description: 'Fone intra-auricular.',
+        description: 'Fone intra-auricular com microfone.',
         priceCents: 3500,
         category: 'Eletrônicos',
         stockQty: 0, // sem estoque (demonstra "inStock: false")
@@ -104,7 +141,8 @@ async function main() {
   console.log('Contas:');
   console.log('  admin@marketplace.ufscar  (ADMIN)');
   console.log('  comprador@teste.com       (BUYER)');
-  console.log('  vendedor@teste.com        (SELLER aprovado, com produtos)');
+  console.log('  vendedor@teste.com        (SELLER aprovado - Papelaria Universitária)');
+  console.log('  vendedor2@teste.com       (SELLER aprovado - Tech UFSCar)');
   console.log('  pendente@teste.com        (SELLER pendente)');
 }
 

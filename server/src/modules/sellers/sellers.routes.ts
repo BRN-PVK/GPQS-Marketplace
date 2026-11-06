@@ -113,9 +113,59 @@ sellersRouter.post(
   }),
 );
 
+// C08: Relatório de comissões retidas pelo marketplace (admin)
+sellersRouter.get(
+  '/admin/commissions',
+  authenticate,
+  authorize('ADMIN'),
+  asyncHandler(async (_req, res) => {
+    const commissions = await prisma.commission.findMany({
+      include: {
+        order: {
+          select: {
+            id: true,
+            createdAt: true,
+            status: true,
+            buyer: { select: { name: true, email: true } },
+          },
+        },
+      },
+      orderBy: { order: { createdAt: 'desc' } },
+    });
+
+    const sellers = await prisma.sellerProfile.findMany({
+      select: { id: true, storeName: true },
+    });
+    const sellerNames = new Map(sellers.map((s) => [s.id, s.storeName]));
+
+    const totalCommissionsCents = commissions.reduce((sum, c) => sum + c.amountCents, 0);
+    const totalBaseCents = commissions.reduce((sum, c) => sum + c.baseAmountCents, 0);
+
+    res.json({
+      summary: {
+        totalCommissionsCents,
+        totalBaseCents,
+        commissionsCount: commissions.length,
+      },
+      commissions: commissions.map((c) => ({
+        id: c.id,
+        orderId: c.orderId,
+        sellerId: c.sellerId,
+        storeName: sellerNames.get(c.sellerId) ?? 'Loja Desconhecida',
+        baseAmountCents: c.baseAmountCents,
+        rateBps: c.rateBps,
+        amountCents: c.amountCents,
+        createdAt: c.order.createdAt,
+        orderStatus: c.order.status,
+      })),
+    });
+  }),
+);
+
 async function updateStatus(id: string, status: 'APPROVED' | 'REJECTED') {
   const existing = await prisma.sellerProfile.findUnique({ where: { id } });
   if (!existing) throw new AppError('Vendedor não encontrado.', 404);
   const updated = await prisma.sellerProfile.update({ where: { id }, data: { status } });
   return { id: updated.id, storeName: updated.storeName, status: updated.status };
 }
+
