@@ -62,3 +62,11 @@ A API impede adicionar produtos inativos/indisponíveis e quantidades acima do e
 - Interface: botão **Finalizar compra** no carrinho e página **Meus pedidos**.
 - Carrinho e checkout usam o mesmo filtro de disponibilidade: itens de produtos desativados (ou de vendedores não aprovados) não aparecem no carrinho e não entram no pedido, então o total exibido é o total do pedido.
 - Testes unitários (`npm test` em `server/`): `cart.rules.test.ts` (CA04 totais do carrinho, CA05 itens e valores por vendedor) e `orders.rules.test.ts` (CA07 estoque no checkout).
+
+## C09 — Acompanhamento dos pedidos e revisão de permissões
+
+- `PATCH /api/seller/orders/:orderId/status` (vendedor): avança o andamento **somente da parte da sua loja** no pedido, um estado por vez: `CONFIRMED` (confirmado) → `PREPARING` (em preparação) → `READY_FOR_PICKUP` (disponível para retirada) → `COMPLETED` (concluído). Só vale para pedidos pagos; não permite pular, repetir ou voltar estados. Pedido sem itens da loja responde 404 (CA02).
+- `GET /api/seller/orders` e `GET /api/orders` passam a informar o andamento de cada loja (`fulfillmentStatus`).
+- Interface: coluna **Andamento** no painel do vendedor, com o botão da próxima etapa, e o andamento de cada loja em **Meus pedidos** (RF09 / CA09).
+- Permissões: o perfil do usuário é lido do banco a cada requisição, e não do token. Assim, quem solicita ser vendedor deixa de usar as rotas de comprador na hora e, após a aprovação, acessa a loja sem precisar entrar de novo.
+- Testes unitários: `orders.rules.test.ts` (CA09 transições do andamento).

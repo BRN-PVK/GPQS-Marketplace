@@ -10,6 +10,8 @@ import {
   findCheckoutConflict,
   calculateOrderCommissions,
   validateStockAvailability,
+  canAdvanceFulfillment,
+  sellerPartStatus,
 } from './orders.rules.js';
 
 export const ordersRouter = Router();
@@ -59,6 +61,7 @@ ordersRouter.get(
           unitPriceCents: number;
           quantity: number;
           subtotalCents: number;
+          fulfillmentStatus: string;
         }>;
         subtotalCents: number;
       }
@@ -94,11 +97,16 @@ ordersRouter.get(
         unitPriceCents: item.unitPriceCents,
         quantity: item.quantity,
         subtotalCents: lineSubtotal,
+        fulfillmentStatus: item.fulfillmentStatus,
       });
       orderEntry.subtotalCents += lineSubtotal;
     }
 
-    const sales = [...ordersMap.values()];
+    // C09: andamento da parte deste vendedor em cada pedido.
+    const sales = [...ordersMap.values()].map((sale) => ({
+      ...sale,
+      fulfillmentStatus: sellerPartStatus(sale.items.map((i) => i.fulfillmentStatus)),
+    }));
     const confirmedSales = sales.filter((s) => s.orderStatus === 'CONFIRMED');
     const totalGrossCents = confirmedSales.reduce((sum, s) => sum + s.subtotalCents, 0);
     const totalCommissionCents = confirmedSales.reduce(
@@ -117,6 +125,53 @@ ordersRouter.get(
       },
       sales,
     });
+  }),
+);
+
+const fulfillmentSchema = z.object({
+  status: z.enum(['PREPARING', 'READY_FOR_PICKUP', 'COMPLETED']),
+});
+
+// C09 / RF09 / CA09: o vendedor avança o andamento somente da sua parte do pedido.
+// Pedido sem itens deste vendedor responde 404, sem revelar pedidos de outras lojas (CA02).
+ordersRouter.patch(
+  '/seller/orders/:orderId/status',
+  authenticate,
+  authorize('SELLER'),
+  asyncHandler(async (req, res) => {
+    const { status } = fulfillmentSchema.parse(req.body);
+    const seller = await prisma.sellerProfile.findUnique({ where: { userId: req.user!.sub } });
+    if (!seller) throw new AppError('Perfil de vendedor não encontrado.', 404);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const items = await tx.orderItem.findMany({
+        where: { orderId: req.params.orderId, sellerId: seller.id },
+        include: { order: { select: { status: true } } },
+      });
+      if (items.length === 0) throw new AppError('Pedido não encontrado.', 404);
+
+      const current = sellerPartStatus(items.map((i) => i.fulfillmentStatus));
+      if (!canAdvanceFulfillment(items[0].order.status, current, status)) {
+        throw new AppError(
+          items[0].order.status !== 'CONFIRMED'
+            ? 'Só é possível atualizar o andamento de pedidos pagos.'
+            : 'Transição de andamento inválida para a situação atual.',
+          409,
+        );
+      }
+
+      // Atualiza apenas os itens que ainda estão no estado lido (evita avanço duplicado concorrente).
+      const result = await tx.orderItem.updateMany({
+        where: { orderId: req.params.orderId, sellerId: seller.id, fulfillmentStatus: current },
+        data: { fulfillmentStatus: status },
+      });
+      if (result.count !== items.length) {
+        throw new AppError('O andamento deste pedido foi alterado. Atualize a página.', 409);
+      }
+      return { orderId: req.params.orderId, fulfillmentStatus: status };
+    });
+
+    res.json(updated);
   }),
 );
 
@@ -346,7 +401,11 @@ function toOrderResponse(order: {
           createdAt: order.payment.createdAt,
         }
       : null,
-    groups: groupBySeller(lines),
+    // C09: andamento de cada loja do pedido, para o comprador acompanhar a retirada.
+    groups: groupBySeller(lines).map((group) => ({
+      ...group,
+      fulfillmentStatus: sellerPartStatus(group.items.map((i) => i.fulfillmentStatus)),
+    })),
   };
 }
 

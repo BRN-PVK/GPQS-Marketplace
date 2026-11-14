@@ -1,5 +1,7 @@
-// Regras de validação do checkout (C07) e pagamento/comissões (C08), isoladas para teste unitário.
+// Regras de validação do checkout (C07), pagamento/comissões (C08) e andamento dos itens (C09),
+// isoladas para teste unitário.
 import { calcCommissionCents } from '../products/products.rules.js';
+import type { FulfillmentStatus } from '../../types.js';
 
 export type CheckoutLine = {
   quantity: number;
@@ -84,3 +86,29 @@ export function validateStockAvailability(
   return { valid: true };
 }
 
+// C09 / RF09: andamento dos itens de cada vendedor, na ordem definida no escopo
+// (confirmado, em preparação, disponível para retirada e concluído).
+export const FULFILLMENT_FLOW: readonly FulfillmentStatus[] = [
+  'CONFIRMED',
+  'PREPARING',
+  'READY_FOR_PICKUP',
+  'COMPLETED',
+];
+
+// Próximo estado do andamento, ou null quando já está concluído (ou o estado é desconhecido).
+export function nextFulfillmentStatus(current: string): FulfillmentStatus | null {
+  const index = FULFILLMENT_FLOW.indexOf(current as FulfillmentStatus);
+  if (index < 0 || index === FULFILLMENT_FLOW.length - 1) return null;
+  return FULFILLMENT_FLOW[index + 1];
+}
+
+// C09: o vendedor só avança o andamento de pedidos pagos, um estado por vez e sem voltar.
+export function canAdvanceFulfillment(orderStatus: string, current: string, target: string): boolean {
+  return orderStatus === 'CONFIRMED' && nextFulfillmentStatus(current) === target;
+}
+
+// Andamento da parte de um vendedor no pedido: o estado menos avançado entre os seus itens.
+export function sellerPartStatus(statuses: string[]): FulfillmentStatus {
+  const indexes = statuses.map((s) => FULFILLMENT_FLOW.indexOf(s as FulfillmentStatus)).filter((i) => i >= 0);
+  return FULFILLMENT_FLOW[indexes.length ? Math.min(...indexes) : 0];
+}

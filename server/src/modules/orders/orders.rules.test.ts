@@ -3,6 +3,9 @@ import {
   findCheckoutConflict,
   calculateOrderCommissions,
   validateStockAvailability,
+  nextFulfillmentStatus,
+  canAdvanceFulfillment,
+  sellerPartStatus,
 } from './orders.rules.js';
 
 function line(name: string, quantity: number, stockQty: number, priceCents = 1000) {
@@ -94,3 +97,34 @@ describe('C08 - validação de estoque para pagamento', () => {
   });
 });
 
+describe('CA09 - andamento da parte de cada vendedor (C09)', () => {
+  it('segue a ordem confirmado → em preparação → disponível para retirada → concluído', () => {
+    expect(nextFulfillmentStatus('CONFIRMED')).toBe('PREPARING');
+    expect(nextFulfillmentStatus('PREPARING')).toBe('READY_FOR_PICKUP');
+    expect(nextFulfillmentStatus('READY_FOR_PICKUP')).toBe('COMPLETED');
+    expect(nextFulfillmentStatus('COMPLETED')).toBeNull();
+    expect(nextFulfillmentStatus('DESCONHECIDO')).toBeNull();
+  });
+
+  it('permite avançar um estado por vez em pedido pago', () => {
+    expect(canAdvanceFulfillment('CONFIRMED', 'CONFIRMED', 'PREPARING')).toBe(true);
+    expect(canAdvanceFulfillment('CONFIRMED', 'READY_FOR_PICKUP', 'COMPLETED')).toBe(true);
+  });
+
+  it('impede pular, repetir ou voltar estados', () => {
+    expect(canAdvanceFulfillment('CONFIRMED', 'CONFIRMED', 'COMPLETED')).toBe(false);
+    expect(canAdvanceFulfillment('CONFIRMED', 'PREPARING', 'PREPARING')).toBe(false);
+    expect(canAdvanceFulfillment('CONFIRMED', 'PREPARING', 'CONFIRMED')).toBe(false);
+  });
+
+  it('impede atualizar pedido aguardando pagamento ou recusado', () => {
+    expect(canAdvanceFulfillment('PENDING_PAYMENT', 'CONFIRMED', 'PREPARING')).toBe(false);
+    expect(canAdvanceFulfillment('REJECTED', 'CONFIRMED', 'PREPARING')).toBe(false);
+  });
+
+  it('a parte do vendedor assume o estado menos avançado entre os seus itens', () => {
+    expect(sellerPartStatus(['PREPARING', 'PREPARING'])).toBe('PREPARING');
+    expect(sellerPartStatus(['COMPLETED', 'PREPARING'])).toBe('PREPARING');
+    expect(sellerPartStatus([])).toBe('CONFIRMED');
+  });
+});

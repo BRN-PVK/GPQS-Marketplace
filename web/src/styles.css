@@ -781,3 +781,29 @@ code {
   border: 1px solid var(--border);
 }
 
+
+/* ---------- C09: andamento dos pedidos por vendedor ---------- */
+.badge.ready {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.fulfillment-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.btn-small {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+}
+.order-store-group h3 .badge {
+  vertical-align: middle;
+  margin-left: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  .badge.ready {
+    background: #172a4a;
+    color: #93c5fd;
+  }
+}

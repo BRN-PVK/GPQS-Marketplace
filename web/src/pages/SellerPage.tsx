@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { fulfillmentBadgeClass, fulfillmentLabel, nextFulfillment } from '../lib/fulfillment';
 
 export function SellerPage() {
   const { user, seller, refresh } = useAuth();
@@ -59,6 +60,7 @@ type SellerSale = {
     subtotalCents: number;
   }>;
   subtotalCents: number;
+  fulfillmentStatus: string;
 };
 
 type SellerProduct = {
@@ -81,6 +83,24 @@ function SellerDashboard({ storeName }: { storeName: string }) {
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [advancingOrderId, setAdvancingOrderId] = useState('');
+
+  // C09: avança o andamento da parte desta loja no pedido (um estado por vez).
+  async function advanceFulfillment(orderId: string, status: string) {
+    setAdvancingOrderId(orderId);
+    setError('');
+    try {
+      await api(`/seller/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+      setSales((prev) => prev.map((s) => (s.orderId === orderId ? { ...s, fulfillmentStatus: status } : s)));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível atualizar o andamento.');
+    } finally {
+      setAdvancingOrderId('');
+    }
+  }
 
   async function loadData() {
     setLoading(true);
@@ -180,6 +200,7 @@ function SellerDashboard({ storeName }: { storeName: string }) {
                 <th>Comissão (10%)</th>
                 <th>Valor Líquido</th>
                 <th>Status</th>
+                <th>Andamento</th>
               </tr>
             </thead>
             <tbody>
@@ -209,6 +230,29 @@ function SellerDashboard({ storeName }: { storeName: string }) {
                       <span className="badge pending">Aguardando</span>
                     ) : (
                       <span className="badge rejected">Recusado</span>
+                    )}
+                  </td>
+                  <td>
+                    {s.orderStatus === 'CONFIRMED' ? (
+                      <div className="fulfillment-cell">
+                        <span className={fulfillmentBadgeClass(s.fulfillmentStatus)}>
+                          {fulfillmentLabel(s.fulfillmentStatus)}
+                        </span>
+                        {nextFulfillment(s.fulfillmentStatus) && (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-small"
+                            disabled={advancingOrderId === s.orderId}
+                            onClick={() => void advanceFulfillment(s.orderId, nextFulfillment(s.fulfillmentStatus)!)}
+                          >
+                            {advancingOrderId === s.orderId
+                              ? 'Atualizando…'
+                              : `Marcar: ${fulfillmentLabel(nextFulfillment(s.fulfillmentStatus)!)}`}
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      '—'
                     )}
                   </td>
                 </tr>

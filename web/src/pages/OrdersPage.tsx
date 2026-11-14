@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
+import { fulfillmentBadgeClass, fulfillmentLabel } from '../lib/fulfillment';
 
 type OrderItem = {
   id: string;
@@ -16,6 +17,7 @@ type OrderGroup = {
   sellerId: string;
   storeName: string;
   subtotalCents: number;
+  fulfillmentStatus: string;
   items: OrderItem[];
 };
 
@@ -125,7 +127,13 @@ export function OrdersPage() {
 
               {order.groups.map((group) => (
                 <section key={group.sellerId} className="order-store-group">
-                  <h3>🏬 {group.storeName} · {money(group.subtotalCents)}</h3>
+                  <h3>
+                    🏬 {group.storeName} · {money(group.subtotalCents)}
+                    {/* C09: andamento da retirada só existe depois do pagamento aprovado. */}
+                    {order.status === 'CONFIRMED' && (
+                      <> <span className={fulfillmentBadgeClass(group.fulfillmentStatus)}>{fulfillmentLabel(group.fulfillmentStatus)}</span></>
+                    )}
+                  </h3>
                   {group.items.map((item) => (
                     <p key={item.id}>
                       {item.name} × {item.quantity} — {money(item.subtotalCents)}
