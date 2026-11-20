@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { fulfillmentBadgeClass, fulfillmentLabel, nextFulfillment } from '../lib/fulfillment';
+import { SellerProducts, type SellerProduct } from './SellerProducts';
 
 export function SellerPage() {
   const { user, seller, refresh } = useAuth();
@@ -63,15 +64,6 @@ type SellerSale = {
   fulfillmentStatus: string;
 };
 
-type SellerProduct = {
-  id: string;
-  name: string;
-  priceCents: number;
-  category: string;
-  stockQty: number;
-  active: boolean;
-};
-
 function money(cents: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
 }
@@ -100,6 +92,11 @@ function SellerDashboard({ storeName }: { storeName: string }) {
     } finally {
       setAdvancingOrderId('');
     }
+  }
+
+  // D01: recarrega apenas os produtos após cadastrar, editar ou (des)ativar.
+  async function reloadProducts() {
+    setProducts(await api<SellerProduct[]>('/seller/products'));
   }
 
   async function loadData() {
@@ -177,7 +174,7 @@ function SellerDashboard({ storeName }: { storeName: string }) {
           className={`tab-btn ${tab === 'products' ? 'active' : ''}`}
           onClick={() => setTab('products')}
         >
-          Estoque de Produtos ({products.length})
+          Meus Produtos ({products.length})
         </button>
       </div>
 
@@ -261,41 +258,8 @@ function SellerDashboard({ storeName }: { storeName: string }) {
           </table>
         )
       ) : (
-        /* Aba de Produtos e Estoque */
-        <div>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Produto</th>
-                <th>Categoria</th>
-                <th>Preço Unitário</th>
-                <th>Estoque Atual</th>
-                <th>Situação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p) => (
-                <tr key={p.id}>
-                  <td><strong>{p.name}</strong></td>
-                  <td>{p.category}</td>
-                  <td>{money(p.priceCents)}</td>
-                  <td>
-                    <span style={{ fontWeight: 700, color: p.stockQty === 0 ? 'var(--danger)' : 'inherit' }}>
-                      {p.stockQty} {p.stockQty === 1 ? 'unidade' : 'unidades'}
-                    </span>
-                  </td>
-                  <td>
-                    {p.stockQty > 0 ? (
-                      <span className="badge approved">Em estoque</span>
-                    ) : (
-                      <span className="badge rejected">Esgotado</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        /* Aba de Produtos (D01: cadastro, edição e desativação) */
+        <SellerProducts products={products} onReload={reloadProducts} />
       )}
     </section>
   );
