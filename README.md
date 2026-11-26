@@ -30,12 +30,13 @@ npm run dev             # http://localhost:5173
 
 Senha de todas: `senha123`
 
-| Perfil            | E-mail                   |
-|-------------------|--------------------------|
-| Administrador     | admin@marketplace.ufscar |
-| Comprador         | comprador@teste.com      |
-| Vendedor aprovado | vendedor@teste.com       |
-| Vendedor pendente | pendente@teste.com       |
+| Perfil                         | E-mail                   |
+|--------------------------------|--------------------------|
+| Administrador                  | admin@marketplace.ufscar |
+| Comprador                      | comprador@teste.com      |
+| Vendedor 1 (Papelaria Univ.)   | vendedor@teste.com       |
+| Vendedor 2 (Tech UFSCar)       | vendedor2@teste.com      |
+| Vendedor pendente              | pendente@teste.com       |
 
 
 ## C06 — Catálogo e carrinho multivendedor
@@ -62,6 +63,34 @@ A API impede adicionar produtos inativos/indisponíveis e quantidades acima do e
 - Interface: botão **Finalizar compra** no carrinho e página **Meus pedidos**.
 - Carrinho e checkout usam o mesmo filtro de disponibilidade: itens de produtos desativados (ou de vendedores não aprovados) não aparecem no carrinho e não entram no pedido, então o total exibido é o total do pedido.
 - Testes unitários (`npm test` em `server/`): `cart.rules.test.ts` (CA04 totais do carrinho, CA05 itens e valores por vendedor) e `orders.rules.test.ts` (CA07 estoque no checkout).
+
+
+## C08 — Pagamento simulado, estoque e comissões
+
+A entrega C08 conclui o ciclo de compra do marketplace com simulação de pagamento, controle atômico de estoque e registro das comissões da plataforma preservadas no momento da confirmação.
+
+### Rotas adicionadas e aprimoradas
+
+- `POST /api/orders/:id/pay`: processa a simulação de pagamento pelo comprador autenticado (perfil `BUYER`). Corpo JSON opcional: `{"result":"APPROVED"}` (padrão) ou `{"result":"REJECTED"}`.
+  - **APPROVED:** valida se o estoque atual cobre os produtos, decrementa o estoque de cada item comprado de forma atômica no banco, calcula a comissão retida pelo marketplace para cada vendedor do pedido (`calculateOrderCommissions` com arredondamento half-up), cria os registros em `Commission` e `Payment`, e atualiza o status do pedido para `CONFIRMED`.
+  - **REJECTED:** registra o pagamento com status `REJECTED` e atualiza o pedido para `REJECTED`, sem alteração de estoque e sem geração de comissões.
+- `GET /api/orders`: aprimorada para retornar o objeto `payment` (resultado e timestamp), permitindo aos compradores acompanhar a confirmação imediata.
+- `GET /api/seller/orders`: extrato de vendas da loja do vendedor autenticado (perfil `SELLER`), detalhando total de vendas brutas confirmadas, taxa retida pelo marketplace (10%), valor líquido a receber e histórico de pedidos.
+- `GET /api/admin/commissions`: extrato financeiro para o administrador (perfil `ADMIN`), consolidando o volume bruto transacionado e o total arrecadado em comissões pela plataforma.
+
+### Interface
+
+- **Meus Pedidos (`/pedidos`):** painel com botões para **Simular Pagamento Aprovado** ou **Simular Recusa**, além de badges visuais para pedidos aguardando, confirmados e recusados.
+- **Painel do Vendedor (`/vendedor`):** cards de métricas financeiras (Vendas Brutas, Comissão da Plataforma e Valor Líquido), extrato de vendas e aba com estoque em tempo real dos produtos da loja.
+- **Painel Administrativo (`/admin`):** aba com extrato consolidado das comissões do marketplace discriminadas por pedido e loja.
+
+### Testes unitários (`npm test` em `server/`)
+
+- `orders.rules.test.ts`:
+  - CA08: cálculo de comissões de múltiplos vendedores em uma única compra (cenário de R$ 100,00 da Loja 1 e R$ 50,00 da Loja 2 com 10% de taxa).
+  - Arredondamento half-up para frações de centavo.
+  - Validação de estoque suficiente vs insuficiente no momento do pagamento.
+
 
 ## C09 — Acompanhamento dos pedidos e revisão de permissões
 

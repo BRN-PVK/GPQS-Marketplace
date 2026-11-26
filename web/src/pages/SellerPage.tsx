@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { fulfillmentBadgeClass, fulfillmentLabel, nextFulfillment } from '../lib/fulfillment';
@@ -32,7 +32,7 @@ export function SellerPage() {
     );
   }
 
-  return <SellerDashboard storeName={seller.storeName} />;
+  return <SellerDashboard storeName={seller.storeName} onStoreNameUpdated={refresh} />;
 }
 
 type SellerSummary = {
@@ -68,7 +68,20 @@ function money(cents: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
 }
 
-function SellerDashboard({ storeName }: { storeName: string }) {
+function SellerDashboard({
+  storeName,
+  onStoreNameUpdated,
+}: {
+  storeName: string;
+  onStoreNameUpdated?: () => Promise<void>;
+}) {
+  const [currentStoreName, setCurrentStoreName] = useState(storeName);
+  const [editingStore, setEditingStore] = useState(false);
+  const [newStoreName, setNewStoreName] = useState(storeName);
+  const [storeError, setStoreError] = useState('');
+  const [storeBusy, setStoreBusy] = useState(false);
+  const [storeSuccess, setStoreSuccess] = useState('');
+
   const [tab, setTab] = useState<'sales' | 'products'>('sales');
   const [summary, setSummary] = useState<SellerSummary | null>(null);
   const [sales, setSales] = useState<SellerSale[]>([]);
@@ -76,6 +89,39 @@ function SellerDashboard({ storeName }: { storeName: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [advancingOrderId, setAdvancingOrderId] = useState('');
+
+  useEffect(() => {
+    setCurrentStoreName(storeName);
+  }, [storeName]);
+
+  // D02 (RF02): vendedor edita seus dados básicos (nome da loja).
+  async function handleUpdateStoreName(e: React.FormEvent) {
+    e.preventDefault();
+    setStoreError('');
+    setStoreSuccess('');
+    const trimmed = newStoreName.trim();
+    if (trimmed.length < 2) {
+      setStoreError('Nome da loja muito curto (mínimo de 2 caracteres).');
+      return;
+    }
+    setStoreBusy(true);
+    try {
+      const res = await api<{ id: string; storeName: string; status: string }>('/sellers/me', {
+        method: 'PATCH',
+        body: JSON.stringify({ storeName: trimmed }),
+      });
+      setCurrentStoreName(res.storeName);
+      setEditingStore(false);
+      setStoreSuccess(`Nome da loja atualizado para "${res.storeName}" com sucesso!`);
+      if (onStoreNameUpdated) {
+        await onStoreNameUpdated();
+      }
+    } catch (err) {
+      setStoreError(err instanceof ApiError ? err.message : 'Falha ao atualizar nome da loja.');
+    } finally {
+      setStoreBusy(false);
+    }
+  }
 
   // C09: avança o andamento da parte desta loja no pedido (um estado por vez).
   async function advanceFulfillment(orderId: string, status: string) {
@@ -125,13 +171,79 @@ function SellerDashboard({ storeName }: { storeName: string }) {
     <section>
       <div className="section-head">
         <div>
-          <h1>Painel da Loja: {storeName}</h1>
-          <span className="badge approved">Vendedor aprovado</span>
+          <h1>Painel da Loja: {currentStoreName}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+            <span className="badge approved">Vendedor aprovado</span>
+            {!editingStore && (
+              <button
+                type="button"
+                className="btn-link"
+                style={{ fontSize: '0.88rem' }}
+                onClick={() => {
+                  setNewStoreName(currentStoreName);
+                  setStoreError('');
+                  setStoreSuccess('');
+                  setEditingStore(true);
+                }}
+              >
+                Editar dados da loja
+              </button>
+            )}
+          </div>
         </div>
         <button type="button" className="btn-secondary" onClick={() => void loadData()}>
           Atualizar dados
         </button>
       </div>
+
+      {editingStore && (
+        <form
+          onSubmit={handleUpdateStoreName}
+          className="form"
+          style={{
+            maxWidth: '460px',
+            margin: '12px 0 20px',
+            background: 'var(--surface)',
+            padding: '16px',
+            borderRadius: 'var(--radius)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <h3 style={{ margin: '0 0 10px', fontSize: '1rem' }}>Editar dados básicos da loja (RF02)</h3>
+          <label>
+            Nome da loja
+            <input
+              value={newStoreName}
+              onChange={(e) => setNewStoreName(e.target.value)}
+              required
+              minLength={2}
+            />
+          </label>
+          {storeError && <p className="error" role="alert">{storeError}</p>}
+          <div className="actions" style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+            <button type="submit" disabled={storeBusy}>
+              {storeBusy ? 'Salvando…' : 'Salvar'}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={storeBusy}
+              onClick={() => {
+                setEditingStore(false);
+                setStoreError('');
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {storeSuccess && (
+        <p className="success-message" role="status" style={{ marginBottom: '16px' }}>
+          {storeSuccess}
+        </p>
+      )}
 
       {error && <p className="error" role="alert">{error}</p>}
 
