@@ -67,8 +67,14 @@ describe('D04 - Testes de integração das rotas protegidas (autenticação e au
   });
 
   afterAll(async () => {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-    await prisma.$disconnect();
+    try {
+      // Remove somente o que este teste criou, para não deixar produtos de teste no catálogo da demonstração.
+      await prisma.product.deleteMany({ where: { id: { in: createdProductIds } } });
+      await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
+    } finally {
+      if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
+      await prisma.$disconnect();
+    }
   });
 
   async function req(
@@ -303,7 +309,11 @@ describe('D04 - Testes de integração das rotas protegidas (autenticação e au
   });
 });
 
-// Funções auxiliares para fixtures
+// Funções auxiliares para fixtures.
+// Os registros criados aqui são anotados e removidos no afterAll; os que já existiam no banco são mantidos.
+const createdUserIds: string[] = [];
+const createdProductIds: string[] = [];
+
 async function ensureUser(
   email: string,
   name: string,
@@ -329,6 +339,7 @@ async function ensureUser(
       },
       include: { seller: true },
     });
+    createdUserIds.push(user.id);
   }
   return user;
 }
@@ -347,6 +358,7 @@ async function ensureProduct(sellerId: string, name: string) {
         active: true,
       },
     });
+    createdProductIds.push(product.id);
   }
   return { id: product.id, sellerId: product.sellerId };
 }

@@ -26,6 +26,15 @@ npm install
 npm run dev             # http://localhost:5173
 ```
 
+## Testes
+
+```bash
+cd server
+npm test
+```
+
+A suíte reúne os testes unitários das regras centrais (`*.rules.test.ts`) e o teste de integração das rotas protegidas (`src/http/routes.protected.test.ts`). O teste de integração usa o banco configurado no `.env`, por isso rode `npm run setup` antes. Ele cria seus próprios produtos de apoio e os remove ao terminar, sem alterar os dados de demonstração.
+
 ## Contas de demonstração
 
 Senha de todas: `senha123`
