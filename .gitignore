@@ -27,3 +27,8 @@ docs/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Arquivos compactados (cópias do projeto não devem ir para o repositório)
+*.rar
+*.zip
+*.7z
